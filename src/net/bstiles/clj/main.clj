@@ -3,6 +3,7 @@
   (:require [clojure.java.io :as io]
             [clojure.main]))
 
+(println *command-line-args*)
 (defn run-in-env
   [text]
   (println "running with scissors"))

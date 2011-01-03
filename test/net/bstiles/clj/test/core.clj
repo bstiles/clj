@@ -2,6 +2,10 @@
   (:use [net.bstiles.clj.core] :reload)
   (:use [clojure.test]))
 
+(defn find-dependencies
+  [text]
+  (:dependencies (find-env text)))
+
 (deftest finding-dependencies
   (testing "Trivial case."
       (is (= '[[a/b "1.0"]]

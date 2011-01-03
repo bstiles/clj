@@ -1,6 +1,9 @@
 #!/bin/bash
 
-LAUNCHER_CLASSPATH="$HOME/MCP/Projects/clj/clj-1.0.0-SNAPSHOT-standalone.jar"
+if [ -z "$LAUNCHER_CLASSPATH" ]
+then
+    LAUNCHER_CLASSPATH="$HOME/MCP/Projects/clj/clj-1.0.0-SNAPSHOT-standalone.jar"
+fi
 
 DEBUG_PORT=
 SUSPEND=n
@@ -61,3 +64,4 @@ DEBUG="-Xshare:off -Xdebug -Xrunjdwp:transport=dt_socket,address=$DEBUG_PORT,ser
 [ -n "$DEBUG_PORT" ] && JAVA_OPTS=("${JAVA_OPTS[@]}" $DEBUG)
 
 exec $JAVA "${JAVA_OPTS[@]}" -cp "$LAUNCHER_CLASSPATH" clojure.main "@/net/bstiles/clj/main.clj" "$@"
+
