@@ -15,11 +15,11 @@
 (def *here* (.getParent (io/file *file*)))
 
 (deftest demo-with-dependencies
-  (is (= "<html></html>"
+  (is (= "<span>Hello, world!</span>\n"
          ($> env ~(format "LAUNCHER_CLASSPATH=%s"
                           (System/getProperty "java.class.path"))
              ~(io/file *here* "scripts" "clj")
-             "hello-world-with-deps.clj"))))
+             ~(io/file *here* "demo" "hello-world-with-deps.clj")))))
 
 (run-tests)
 ;; Prevents the thread pools from causing the VM to linger

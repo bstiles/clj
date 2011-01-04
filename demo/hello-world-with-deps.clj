@@ -4,4 +4,4 @@
          (:dependencies [[hiccup "0.3.0"]]))
 
 (use 'hiccup.core)
-(println (html "Hello, world!"))
+(println (html [:span "Hello, world!"]))

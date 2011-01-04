@@ -1,6 +1,9 @@
 (ns net.bstiles.clj.core
-  (:import (java.io PushbackReader StringReader))
-  (:require [clojure.java.io :as io]))
+  (:import (java.io PushbackReader StringReader)
+           (java.net URL URLClassLoader))
+  (:use [clojure.contrib.reflect :only [call-method]])
+  (:require [clojure.java.io :as io]
+            [mcp-deps.aether :as deps]))
 
 (def
   ^{:doc "Maximum number of objects read before giving up finding an env form."}
@@ -27,51 +30,78 @@
     (when-not (= eof-value candidate)
       candidate)))
 
-(comment
-  (defn make-managed-class-environment
-    [& args]
-    (let [{:keys [app-path parent-path aspect-path weave-path client-path]} (apply hash-map args)
-          parent-loader (loop [paths (filter seq [app-path (concat parent-path aspect-path)])
-                               loader (.getParent (ClassLoader/getSystemClassLoader))]
-                          (if-let [path (first paths)]
-                            (recur (next paths)
-                                   (URLClassLoader. (into-array URL (map io/as-url path)) loader))
-                            loader))
-          weaving-loader (when weave-path
-                           (proxy [WeavingURLClassLoader] [(into-array URL (map io/as-url weave-path))
-                                                           parent-loader]
-                             (getAspectURLs [] (into-array URL (map io/as-url aspect-path)))))]
-      (cond
-       (seq client-path) (URLClassLoader. (into-array URL (map io/as-url client-path))
-                                          (or weaving-loader parent-loader))
-       weaving-loader weaving-loader
-       :else parent-loader)))
+(defn- reformat-artifact-ids
+  [ids]
+  (for [[id version] ids]
+    (let [group-id (or (namespace id) (name id))
+          artifact-id (name id)
+          version version]
+      [group-id artifact-id version])))
 
-  (defn standard-scripted-environment
-    [script-path orig-path & [aspect-path third-party-filter-fn]]
-    (let [clojure-path (for [jar-name *clojure-jars*]
-                         (if-let [jar-url (get-file-resource jar-name)]
-                           jar-url
-                           (fail-jar-not-found jar-name)))]
-      (if aspect-path
-        (let [third-party (filter (or third-party-filter-fn *third-party-filter-fn*) orig-path)
-              ours (filter (comp not (apply hash-set third-party)) orig-path)]
-          (make-managed-class-environment
-           :app-path (for [jar-name *aspectj-jars*]
-                       (if-let [jar-url (get-file-resource jar-name)]
-                         jar-url
-                         (fail-jar-not-found jar-name)))
-           :parent-path third-party
-           :aspect-path aspect-path
-           :weave-path ours
-           :client-path (concat script-path clojure-path)))
-        (make-managed-class-environment :parent-path orig-path
-                                        :client-path (concat script-path clojure-path)))))
+(defn make-class-loader-env
+  "Creates a chain of class loaders according to spec.  By default,
+  clojure.jar and clojure-contrib.jar will be added to the child-most
+  class loader and will be removed from any parent class loaders.  If
+  an AspectJ weaving class loader is specified, the AspectJ jars will
+  be added to the constructed class loader and removed from any parent
+  class loaders.
 
-  (defn run-clojure-in
-    [env & args]
-    (.setContextClassLoader (Thread/currentThread) env)
-    (let [rt (.. env (loadClass "clojure.lang.RT"))
-          clojure-main (.. env (loadClass "clojure.main"))
+  Simplest classpath
+  ==================
+
+  [[group-id/artifact-id \"version\"] ...]
+
+  Creates a single class loader parented by the parent of
+  ClassLoader/getSystemClassLoader.  This class loader will have as its
+  classpath all the dependencies specified by the Maven artifact
+  descriptors.
+
+  Chain of loaders
+  ================
+
+  (chain
+    [[group-id/artifact-id \"version\"] ...]                  <= 0..n
+    [:aspectj [group-id/artifact-id \"version\"] ...]         <= 0..1
+    [[group-id/artifact-id \"version\"] ...])                 <= 0..n
+
+  Creates a chain of one or more class loaders, one for each spec
+  in the chain-list.  The first spec is parented by the parent of
+  ClassLoader/getSystemClassLoader.  Each specified class loader is
+  made the parent of the next specified class loader in the chain-list.
+
+  A specification with a first element of :aspectj will construct
+  a weaving class loader that will weave aspects contained in the
+  specified graph of artifacts."
+  [env]
+  (let [deps (:dependencies env)]
+    (cond
+     (= 'chain (first deps)) (throw (UnsupportedOperationException. "Chains not implemented."))
+     (every? sequential? deps) (URLClassLoader.
+                                (into-array
+                                 URL
+                                 (for [dep (:files (deps/resolve-runtime-artifacts
+                                                    (reformat-artifact-ids deps)))]
+                                   (-> dep .toURI .toURL)))
+                                (.getParent (ClassLoader/getSystemClassLoader)))
+     :else (throw (RuntimeException. (format "Unrecognized environment specification: %s"
+                                             (pr-str env)))))))
+
+(defn run-in-env
+  "Creates a class loader environment from the specification, creates
+  a thread, sets its context class loader, and runs run-fn in the
+  thread, passing the leaf class loader as the only argument.  See
+  make-class-loader-env for the format of env-spec."
+  [env-spec run-fn]
+  (let [class-loader (make-class-loader-env env-spec)]
+   (doto (Thread. (ThreadGroup. "clj")
+                  #(run-fn class-loader))
+     (.setContextClassLoader class-loader)
+     .start)))
+
+(defn make-call-clojure-main-fn
+  [& args]
+  (fn [class-loader]
+    (let [clojure-main (.. class-loader (loadClass "clojure.main"))
           args (into-array String args)]
       (call-method clojure-main :main [(class args)] nil args))))
+

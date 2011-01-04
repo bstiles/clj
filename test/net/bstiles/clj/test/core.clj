@@ -1,4 +1,5 @@
 (ns net.bstiles.clj.test.core
+  (:import (java.net URLClassLoader))
   (:use [net.bstiles.clj.core] :reload)
   (:use [clojure.test]))
 
@@ -98,3 +99,17 @@
            (find-dependencies
             (str "0"
                  "(comment clj-env (:dependencies [[a/b \"1.0\"]]))"))))))
+
+(deftest make-environments
+  (testing "Simplest case group/artifact."
+    (let [cl-env (make-class-loader-env
+                  {:dependencies '[[org.clojure/clojure "1.2.0"]]})]
+      (is (= URLClassLoader (class cl-env)))
+      (is (some #(re-find #"\bclojure.*[.]jar" (str %))
+                (.getURLs cl-env)))))
+  (testing "Simplest case abbreviated artifact."
+    (let [cl-env (make-class-loader-env
+                  {:dependencies '[[ant "1.7.0"]]})]
+      (is (= URLClassLoader (class cl-env)))
+      (is (some #(re-find #"\bant.*[.]jar" (str %))
+                (.getURLs cl-env))))))
