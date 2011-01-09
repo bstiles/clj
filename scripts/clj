@@ -2,12 +2,14 @@
 
 if [ -z "$LAUNCHER_CLASSPATH" ]
 then
-    LAUNCHER_CLASSPATH="$HOME/MCP/Projects/clj/clj-1.0.0-SNAPSHOT-standalone.jar"
+    echo "!CHEATING ON THE CLASSPATH!" >&2
+    LAUNCHER_CLASSPATH="$(cd "$HOME/MCP/Projects/clj"; lein classpath)"
+    # LAUNCHER_CLASSPATH="$HOME/MCP/Projects/clj/clj-1.0.0-SNAPSHOT-standalone.jar"
 fi
 
 DEBUG_PORT=
 SUSPEND=n
-JAVA_OPTS=(-server)
+JAVA_OPTS=("${JAVA_OPTS[@]}" -server)
 JAVA=java
 while [ $# -gt 0 ]
 do
@@ -26,10 +28,6 @@ do
             ;;
         --suspend)
             SUSPEND=y
-            shift
-            ;;
-        --jdk17)
-            JAVA="/Users/bstiles/Development/Library/OpenJDK/Versions/1.7-trunk/bsd-port/build/bsd-amd64/bin/java"
             shift
             ;;
         -D*|-javaagent*|-X*)
