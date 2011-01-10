@@ -14,6 +14,14 @@
 
 (def *here* (.getParent (io/file *file*)))
 
+(deftest demo-without-dependencies
+  (testing "No environment."
+    (is (= "Hello, world!\n"
+           ($> env ~(format "LAUNCHER_CLASSPATH=%s"
+                            (System/getProperty "java.class.path"))
+               ~(io/file *here* "scripts" "clj")
+               ~(io/file *here* "demo" "hello-world.clj"))))))
+
 (deftest demo-with-dependencies
   (testing "Arbitrary third-party library."
     (is (= "<span>Hello, world!</span>\n"
@@ -32,7 +40,13 @@
            ($> env ~(format "LAUNCHER_CLASSPATH=%s"
                             (System/getProperty "java.class.path"))
                ~(io/file *here* "scripts" "clj")
-               ~(io/file *here* "demo" "swank-clojure.clj"))))))
+               ~(io/file *here* "demo" "swank-clojure.clj")))))
+  (testing "Rhino."
+    (is (= "Hello, Javascript world!\n"
+           ($> env ~(format "LAUNCHER_CLASSPATH=%s"
+                            (System/getProperty "java.class.path"))
+               ~(io/file *here* "scripts" "clj")
+               ~(io/file *here* "demo" "javascript-hello-world.clj"))))))
 
 (run-tests)
 ;; Prevents the thread pools from causing the VM to linger

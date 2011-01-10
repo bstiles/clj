@@ -52,10 +52,10 @@
 
       .. defenv #\"<!--\" #\"-->\" ???-env"
   [text]
-  (let [[_ start end] (re-find #"defenv #\"([^\"]+)\"(?: #\"([^\"]+)\")? \w+-env" text)]
+  (let [[_ start end] (re-find #"defenv #\"(.+?)(?<!\\)\"(?: #\"(.+?)(?<!\\)\")? \w+-env" text)]
     (loop [patterns [start end]
            text (string/replace text
-                                #"(defenv) #\"[^\"]+\"(?: #\"[^\"]+\")? (\w+-env)"
+                                #"(defenv) #\".+?(?<!\\)\"(?: #\".+?(?<!\\)\")? (\w+-env)"
                                 "$1 $2")]
       (if-let [pattern (first patterns)]
         (recur (next patterns)
@@ -65,20 +65,25 @@
 (defn- match-definition
   [object]
   (when (seq? object)
-    (if (= ['defenv 'clj-env] [(first object) (second object)])
+    (if (and (= 'defenv (first object))
+             (symbol? (second object))
+             (re-matches #"\w+-env" (str (second object))))
       object
       (when (= 'comment (first object))
         (seq? (second object))
         (loop [xs (next object)]
           (when-let [x (first xs)]
-            (if (= ['defenv 'clj-env] [(first x) (second x)])
+            (if (and (= 'defenv (first x))
+                     (symbol? (second x))
+                     (re-matches #"\w+-env" (str (second x))))
               x
               (recur (next xs)))))))))
 
 (defn find-env
   "Search Clojure-readable text for a specially marked form containing an
-  environment definition.  The form must be contained in a comment macro
-  with a first argument of `clj-env'."
+  environment definition.  The form must be have a first element of
+  `defenv' and a second element of `<type>-env' (ignoring the one or two
+  optional regexes specifying comment delimiters to strip)."
   [text]
   (let [eof-value (Object.)
         r (PushbackReader. (io/reader (StringReader. text)))
@@ -164,7 +169,7 @@
   [env-spec run-fn]
   (let [class-loader (make-class-loader-env env-spec :additional-deps *additional-deps*)]
     (when (System/getProperty "net.bstiles.clj.debug-classpath")
-      (util/print-classpath))
+      (util/print-classpath class-loader))
     (doto (Thread. (ThreadGroup. "clj")
                    #(run-fn class-loader))
       (.setContextClassLoader class-loader)

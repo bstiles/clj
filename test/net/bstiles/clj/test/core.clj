@@ -62,6 +62,10 @@
                  "clj-env" \newline
                  "(:dependencies" \newline
                  "[[x/x \"1.0\"]]))")))))
+  (testing "Embedded in a Clojure comment form."
+    (is (= '[[a/b "1.0"]]
+           (find-dependencies
+            (str "(comment (defenv clj-env (:dependencies [[a/b \"1.0\"]])))")))))
   (testing "Embedded in a C-style multi-line comment."
     (is (= '[[a/b "1.0"]]
            (find-dependencies
@@ -160,4 +164,19 @@
     (is (= " foo\n defenv clj-env\n bar"
            (strip-comment-patterns (str "# foo" \newline
                                         "# defenv #\"#\" clj-env" \newline
-                                        "# bar"))))))
+                                        "# bar")))))
+  (testing "Semi-colon single-line."
+    (is (= " foo\n defenv clj-env\n bar"
+           (strip-comment-patterns (str "; foo" \newline
+                                        "; defenv #\";\" clj-env" \newline
+                                        "; bar")))))
+  (testing "XML multi-line."
+    (is (= " foo\n defenv clj-env\n bar "
+           (strip-comment-patterns (str "<!-- foo" \newline
+                                        " defenv #\"<!--\" #\"-->\" clj-env" \newline
+                                        " bar -->")))))
+  (testing "Fictional double-quote single-line."
+    (is (= " foo\n defenv clj-env\n bar"
+           (strip-comment-patterns (str "\" foo" \newline
+                                        "\" defenv #\"\\\"\" clj-env" \newline
+                                        "\" bar"))))))
