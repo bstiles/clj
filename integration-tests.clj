@@ -46,7 +46,13 @@
            ($> env ~(format "LAUNCHER_CLASSPATH=%s"
                             (System/getProperty "java.class.path"))
                ~(io/file *here* "scripts" "clj")
-               ~(io/file *here* "demo" "javascript-hello-world.clj"))))))
+               ~(io/file *here* "demo" "javascript-hello-world.js")))))
+  (testing "JRuby."
+    (is (= "Hello, JRuby world!\n"
+           ($> env ~(format "LAUNCHER_CLASSPATH=%s"
+                            (System/getProperty "java.class.path"))
+               ~(io/file *here* "scripts" "clj")
+               ~(io/file *here* "demo" "jruby-hello-world.rb"))))))
 
 (run-tests)
 ;; Prevents the thread pools from causing the VM to linger

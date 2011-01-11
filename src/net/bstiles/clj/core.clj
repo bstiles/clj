@@ -95,7 +95,10 @@
                       nil
                       (if-let [form (match-definition object)]
                         (try
-                          (apply hash-map (nth form 2))
+                          (assoc (apply hash-map (last form))
+                            :env-type (string/replace (name (second form))
+                                                      #"-env$"
+                                                      ""))
                           (catch Exception e nil))
                         (recur (read-fn)
                                (inc runaway-counter)))))]
