@@ -148,7 +148,9 @@
   specified graph of artifacts."
   [env & opts]
   (let [deps (:dependencies env)
-        opts (apply hash-map opts)]
+        opts (apply hash-map opts)
+        offline (or (:offline opts)
+                    (= "true" (System/getProperty "net.bstiles.clj.offline")))]
     (cond
      (= 'chain (first deps)) (throw (UnsupportedOperationException. "Chains not implemented."))
      (every? sequential? deps) (URLClassLoader.
@@ -158,7 +160,8 @@
                                                     (reformat-artifact-ids
                                                      (concat
                                                       deps
-                                                      (:additional-deps opts)))))]
+                                                      (:additional-deps opts)))
+                                                    :offline offline))]
                                    (-> dep .toURI .toURL)))
                                 (.getParent (ClassLoader/getSystemClassLoader)))
      :else (throw (RuntimeException. (format "Unrecognized environment specification: %s"
@@ -173,10 +176,14 @@
   (let [class-loader (make-class-loader-env env-spec :additional-deps *additional-deps*)]
     (when (System/getProperty "net.bstiles.clj.debug-classpath")
       (util/print-classpath class-loader))
-    (doto (Thread. (ThreadGroup. "clj")
-                   #(run-fn class-loader))
-      (.setContextClassLoader class-loader)
-      .start)))
+    (let [orig-context-class-loader (.getContextClassLoader (Thread/currentThread))]
+      (try
+        (.setContextClassLoader (Thread/currentThread)
+                                class-loader)
+        (run-fn class-loader)
+        (finally
+         (.setContextClassLoader (Thread/currentThread)
+                                 orig-context-class-loader))))))
 
 (defn make-call-clojure-main-fn
   "Returns a function taking a single java.lang.ClassLoader argument and

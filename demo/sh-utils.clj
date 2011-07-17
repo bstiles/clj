@@ -6,5 +6,5 @@
   (:use mcp-core.sh)
   (:require [clojure.string :as string]))
 
-(println (string/reverse ($> date)))
+($ echo ~(first *command-line-args*))
 ($exit)

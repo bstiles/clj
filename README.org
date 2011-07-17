@@ -1,0 +1,12 @@
+#    -*- mode: org; comment-start: nil -*-
+#+STARTUP: content
+#+OPTIONS: ^:nil
+* Notes
+** [2011-07-16 Sat] Tested clj-ng script for memory leaks
+n=20000; while [ $(( n -= 1 )) -ge 0 ]; do ~/MCP/Projects/clj/scripts/clj-ng /tmp/foo.clj > /dev/null ; done
+where /tmp/foo.clj is '(print \.)'
+
+PermGen and classes loaded always fell back to the same point after collection.
+** [2011-07-16 Sat] Tracking down memory leak
+Running ./integration-tests.sh a few times via clj-ng causes the
+PermGen space to be consumed.

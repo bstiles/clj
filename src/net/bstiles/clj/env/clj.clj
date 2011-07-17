@@ -3,7 +3,7 @@
 
 (defn make-exec-fn
   [& args]
-  (make-call-clojure-main-fn
-   #_(comment "-e" (str "(require 'swank.swank)"
-                        "(swank.swank/start-repl 4010)"))
-   (first args)))
+  (apply make-call-clojure-main-fn
+         #_(comment "-e" (str "(require 'swank.swank)"
+                              "(swank.swank/start-repl 4010)"))
+         args))

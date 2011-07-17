@@ -54,6 +54,25 @@
                ~(io/file *here* "scripts" "clj")
                ~(io/file *here* "demo" "jruby-hello-world.rb"))))))
 
+(deftest demo-with-args
+  (testing "Clojure with args."
+    (is (= "clojure-with-args foo|bar\n"
+           ($> env ~(format "LAUNCHER_CLASSPATH=%s"
+                            (System/getProperty "java.class.path"))
+               ~(io/file *here* "scripts" "clj")
+               ~(io/file *here* "demo" "clojure-with-args.clj")
+               "foo"
+               "bar")))))
+
+(deftest demo-sh
+  (testing "sh-utils."
+    (is (= "food\n"
+           ($> env ~(format "LAUNCHER_CLASSPATH=%s"
+                            (System/getProperty "java.class.path"))
+               ~(io/file *here* "scripts" "clj")
+               ~(io/file *here* "demo" "sh-utils.clj")
+               "food")))))
+
 (run-tests)
 ;; Prevents the thread pools from causing the VM to linger
 ($exit)

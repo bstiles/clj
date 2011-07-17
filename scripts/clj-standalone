@@ -1,0 +1,66 @@
+#!/bin/bash
+
+LAUNCHER_CLASSPATH="$HOME/MCP/Projects/clj/clj-1.0.0-SNAPSHOT-standalone.jar"
+if [ -z "$LAUNCHER_CLASSPATH" ]
+then
+    echo "!CHEATING ON THE CLASSPATH!" >&2
+    LAUNCHER_CLASSPATH="$(cd "$HOME/MCP/Projects/clj"; lein classpath)"
+fi
+
+DEBUG_PORT=
+SUSPEND=n
+JAVA_OPTS=("${JAVA_OPTS[@]}" -server)
+JAVA=java
+while [ $# -gt 0 ]
+do
+    case "$1" in
+        --debug-port)
+            [ -z "$2" ] && abort_and_display_help "Malformed optino: no debug port specified."
+            echo "$2" | grep -q -v '[0-9]' && abort "Debug port in not a number: $2"
+            DEBUG_PORT="$2"
+            shift
+            shift
+            ;;
+        --profile)
+            export DYLD_LIBRARY_PATH=/Applications/YourKit.app/bin/mac
+            JAVA_OPTS=("${JAVA_OPTS[@]}" "-agentlib:yjpagent")
+            shift
+            ;;
+        --suspend)
+            SUSPEND=y
+            shift
+            ;;
+        -D*|-javaagent*|-X*)
+            JAVA_OPTS=("${JAVA_OPTS[@]}" "$1")
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+xmx=
+xms=
+for opt in "${JAVA_OPTS[@]}"
+do
+    case "$opt" in
+        -Xmx*)
+            xmx="$opt"
+            ;;
+        -Xms*)
+            xms="$opt"
+            ;;
+    esac
+done
+[ -z "$xmx" ] && JAVA_OPTS=("${JAVA_OPTS[@]}" -Xmx256m)
+[ -z "$xms" ] && JAVA_OPTS=("${JAVA_OPTS[@]}" -Xms128m)
+
+set -o nounset
+
+DEBUG="-Xshare:off -Xdebug -Xrunjdwp:transport=dt_socket,address=$DEBUG_PORT,server=y,suspend=$SUSPEND"
+[ -n "$DEBUG_PORT" ] && JAVA_OPTS=("${JAVA_OPTS[@]}" $DEBUG)
+
+exec $JAVA "${JAVA_OPTS[@]}" -cp "$LAUNCHER_CLASSPATH" clojure.main "@/net/bstiles/clj/main.clj" "$@"
+
+
