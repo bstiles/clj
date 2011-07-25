@@ -3,7 +3,8 @@
            (java.net URL URLClassLoader)
            (java.nio CharBuffer)
            (java.util.regex Pattern))
-  (:use [clojure.contrib.reflect :only [call-method]])
+  (:use [clojure.contrib.reflect :only [call-method]]
+        [net.bstiles.clj.classloader :only [close]])
   (:require [clojure.java.io :as io]
             [clojure.string :as string]
             [mcp-deps.aether :as deps]
@@ -149,6 +150,7 @@
   [env & opts]
   (let [deps (:dependencies env)
         opts (apply hash-map opts)
+        include-sources (:include-sources env)
         offline (or (:offline opts)
                     (= "true" (System/getProperty "net.bstiles.clj.offline")))]
     (cond
@@ -161,7 +163,8 @@
                                                      (concat
                                                       deps
                                                       (:additional-deps opts)))
-                                                    :offline offline))]
+                                                    :offline offline
+                                                    :include-sources include-sources))]
                                    (-> dep .toURI .toURL)))
                                 (.getParent (ClassLoader/getSystemClassLoader)))
      :else (throw (RuntimeException. (format "Unrecognized environment specification: %s"
@@ -182,6 +185,7 @@
                                 class-loader)
         (run-fn class-loader)
         (finally
+         (close class-loader)
          (.setContextClassLoader (Thread/currentThread)
                                  orig-context-class-loader))))))
 

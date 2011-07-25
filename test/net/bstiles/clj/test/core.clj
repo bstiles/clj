@@ -83,6 +83,15 @@
                  "(defenv clj-env (:dependencies [[a/b \"1.0\"]]))" \newline
                  "*/"))))))
 
+(deftest find-options
+  (testing ":offline"
+    (is (:offline (find-env "(comment (defenv clj-env (:offline true)))")))
+    (is (:offline (find-env "(comment (defenv clj-env (:dependencies [[a/b \"1.0\"]] :offline true)))")))
+    (is (not (:offline (find-env "(comment (defenv clj-env")))))
+  (testing ":include-sources"
+    (is (:include-sources (find-env "(comment (defenv clj-env (:include-sources true)))")))
+    (is (not (:include-sources (find-env "(comment (defenv clj-env))"))))))
+
 (deftest not-finding-dependencies
  (testing "No tag."
    (is (nil? (find-dependencies
